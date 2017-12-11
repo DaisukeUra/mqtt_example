@@ -1,46 +1,42 @@
 import paho.mqtt.client as mqtt
 
+
 host = '127.0.0.1'
 port = 13232
-topic = 'iktakahiro/a'
-request_topic = 'iktakahiro/request'
+topic = 'test_topic/a'
+_qos = 2
+request_topic = 'test_topic/request'
 
-_data = []
 
-def on_connect(client, userdata, flags, respons_code):
-    print('status {0}'.format(respons_code))
+class MQTT_SUBSCRIBER(object):
 
-    client.subscribe(topic)
+    def __init__(self):
+        self._data = []
 
-def on_connect_request(client, userdata, flags, respons_code):
-    print('status {0}'.format(respons_code))
+        self.client = mqtt.Client(protocol=mqtt.MQTTv311)
 
-    client.subscribe(request_topic)
+        self.client.on_connect = self.on_connect
+        self.client.message_callback_add(topic, self.on_message)
+        self.client.message_callback_add(request_topic, self.on_request)
 
-def on_message(client, userdata, msg):
-    global _data
-    _data.append(msg.payload)
+        self.client.connect(host, port=port, keepalive=60)
 
-def on_request(client, userdata, msg):
-    global _data
-    print(_data)
-    _data = []
+    def on_connect(self, client, userdata, flags, respons_code):
+        print('status {0}'.format(respons_code))
+
+        self.client.subscribe("test_topic/#", _qos)
+
+    def on_message(self, client, userdata, msg):
+        self._data.append(msg.payload)
+
+    def on_request(self, client, userdata, msg):
+        print(self._data)
+        print("Num: " + str(len(self._data)))
+        self._data = []
+
 
 if __name__ == '__main__':
 
-    client = mqtt.Client(protocol=mqtt.MQTTv311)
+    subscriber = MQTT_SUBSCRIBER()
 
-    client.on_connect = on_connect
-    client.on_message = on_message
-
-    request_client = mqtt.Client(protocol=mqtt.MQTTv311)
-
-    request_client.on_connect = on_connect_request
-    request_client.on_message = on_request
-
-    request_client.connect(host, port=port, keepalive=60)
-    client.connect(host, port=port, keepalive=60)
-
-    while 1:
-        request_client.loop()
-        client.loop()
+    subscriber.client.loop_forever()
